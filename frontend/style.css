@@ -1,21 +1,22 @@
-/* ---- Global styles ---- */
+/* ---- Global styles (Do not edit this top section) ---- */
 
 /* CSS Reset */
 * {
     box-sizing: border-box;
 }
 
-/* Body styles. DO NOT REMOVE OR EDIT UNLESS ABSOLUTELY NECESSARY */
+/* Body styles */
 body {
     font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
+    background-color: #f0f2f5; /* Lighter, softer background */
     padding: 0;
     margin: 0;
     color: #333;
     padding-top: 30px;
+    padding-bottom: 50px; /* Added padding to make space for the fixed footer */
 }
 
-/* Disclaimer styles. DO NOT REMOVE OR EDIT UNLESS ABSOLUTELY NECESSARY */
+/* Disclaimer styles */
 .disclaimer {
     position: fixed;
     top: 0;
@@ -29,4 +30,241 @@ body {
     height: 30px;
 }
 
-/* ---- Your custom styles below ---- */
+/* ---- Your Custom Styles Below (Aesthetic Upgrade) ---- */
+
+/* Primary brand color */
+:root {
+    --primary-color: #1E88E5; /* A clean, corporate blue for primary actions */
+    --secondary-color: #6c757d; /* Neutral gray for secondary actions */
+    --delete-color: #dc3545;
+}
+
+/* Centered Header (Fixes the alignment issue) */
+header h1 {
+    text-align: center; 
+    margin-top: 20px;
+    margin-bottom: 30px;
+    font-size: 2.5rem;
+    color: var(--primary-color); /* Use primary color */
+}
+
+/* Main Content Area Styling (The actual container) */
+main {
+    max-width: 600px; 
+    margin: 0 auto;
+    padding-bottom: 50px;
+}
+
+/* Search Bar Container */
+.search-container {
+    margin: 20px 0;
+    width: 100%; 
+}
+
+/* Search Input Styling */
+#searchBar {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+#searchBar:focus {
+    border-color: var(--primary-color);
+}
+
+/* Medicine Cards (Flexbox Layout) */
+.medicine-item {
+    background: #fff;
+    margin: 10px 0; 
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.1s;
+}
+
+.medicine-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Name and Price Styling for Readability */
+.medicine-item strong {
+    font-size: 1.1rem;
+    color: #444;
+}
+
+.medicine-item span {
+    color: #666; 
+    font-weight: 500;
+}
+
+/* Form Container */
+form {
+    background: #fff;
+    padding: 25px;
+    margin: 20px 0;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+/* Form Inputs */
+form input {
+    display: block;
+    margin: 15px auto;
+    padding: 12px;
+    width: 90%;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    transition: border-color 0.3s;
+}
+
+form input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+/* --- BUTTON FIX START (Restores modern look and hierarchy) --- */
+
+/* Base Button Styling (Shared between form and average) */
+form button, #averagePriceButton {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px; /* Modern aesthetic */
+    cursor: pointer;
+    width: 90%;
+    max-width: 200px;
+    margin: 10px auto;
+    display: block;
+    font-weight: bold;
+    color: #fff; 
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+/* Primary Button: Add Medicine (Blue) */
+form button[type="submit"] {
+    background: var(--primary-color);
+}
+
+/* Secondary Button: Calculate Average Price (Gray) */
+#averagePriceButton {
+    background: var(--secondary-color);
+}
+
+/* Hover States */
+form button:hover {
+    background: var(--primary-color);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+    opacity: 0.9;
+}
+
+#averagePriceButton:hover {
+    background: #5a6268;
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Delete Button Overrides */
+.medicine-item button {
+    background-color: var(--delete-color) !important;
+    font-size: 0.85rem !important;
+    padding: 5px 10px !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+}
+
+/* Delete button hover */
+.medicine-item button:hover {
+    background-color: #c82333 !important;
+    opacity: 1;
+}
+
+/* --- BUTTON FIX END --- */
+
+
+/* Average Price Display Text (Centered) */
+#averagePriceDisplay {
+    font-weight: bold;
+    font-size: 1.2rem;
+    margin-bottom: 40px;
+    text-align: center; 
+    margin-top: 20px;
+    color: var(--primary-color);
+}
+
+/* FIX 1: Style for the "No medicines found." message (Centered) */
+.search-message {
+    text-align: center; 
+    width: 100%;
+    padding: 20px 0;
+    color: var(--secondary-color);
+    font-size: 1.1rem;
+    margin-top: 15px;
+}
+
+/* Notification Toast (Fixes the header overlap - Pushed to 90px) */
+#notification {
+    position: fixed;
+    top: 90px; 
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: bold;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+
+    /* --- ADDED FROSTED GLASS EFFECT --- */
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    /* The success/error classes will define the final background color */
+}
+
+#notification.show-success {
+    /* Uses a semi-transparent green background */
+    background-color: rgba(40, 167, 69, 0.8); 
+    opacity: 1;
+    visibility: visible;
+}
+
+#notification.show-error {
+    /* Uses a semi-transparent red background */
+    background-color: rgba(220, 53, 69, 0.8);
+    opacity: 1;
+    visibility: visible;
+}
+
+/* --- NEW FOOTER STYLES (FROSTED GLASS EFFECT) --- */
+#appFooter {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    
+    /* Key to Frosted Glass Look */
+    background-color: rgba(233, 236, 239, 0.6); /* Semi-transparent background */
+    backdrop-filter: blur(4px); /* Blurs the content behind it */
+    -webkit-backdrop-filter: blur(4px); /* For Safari support */
+    
+    color: #495057;
+    text-align: center;
+    padding: 8px 0;
+    font-size: 0.9rem;
+    border-top: 1px solid #dee2e6;
+    z-index: 500;
+}

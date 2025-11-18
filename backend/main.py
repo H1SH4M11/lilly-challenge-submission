@@ -1,29 +1,18 @@
-from fastapi import FastAPI, Form
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-"""
-This module defines a FastAPI application for managing a list of medicines.
-It provides endpoints to retrieve all medicines, retrieve a single medicine by name,
-and create a new medicine.
-Endpoints:
-- GET /medicines: Retrieve all medicines from the data.json file.
-- GET /medicines/{name}: Retrieve a single medicine by name from the data.json file.
-- POST /create: Create a new medicine with a specified name and price.
-- POST /update: Update the price of a medicine with a specified name.
-- DELETE /delete: Delete a medicine with a specified name.
-Functions:
-- get_all_meds: Reads the data.json file and returns all medicines.
-- get_single_med: Reads the data.json file and returns a single medicine by name.
-- create_med: Reads the data.json file, adds a new medicine, and writes the updated data back to the file.
-- update_med: Reads the data.json file, updates the price of a medicine, and writes the updated data back to the file.
-- delete_med: Reads the data.json file, deletes a medicine, and writes the updated data back to the file.
-Usage:
-Run this module directly to start the FastAPI application.
-"""
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 import uvicorn
 import json
 
 app = FastAPI()
 
+# Pydantic model for request validation
+class Medicine(BaseModel):
+    name: str
+    price: float
+
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,99 +21,87 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Helper Functions ---
+
+def load_data():
+    """Helper to read the JSON database."""
+    with open('data.json', 'r') as f:
+        return json.load(f)
+
+def save_data(data):
+    """Helper to write to the JSON database."""
+    with open('data.json', 'w') as f:
+        json.dump(data, f, indent=4)
+
+# --- API Endpoints ---
+
 @app.get("/medicines")
 def get_all_meds():
-    """
-    This function reads the data.json file and returns all medicines.
-    Returns:
-        dict: A dictionary of all medicines
-    """
-    with open('data.json') as meds:
-        data = json.load(meds)
-    return data
+    return load_data()
 
 @app.get("/medicines/{name}")
 def get_single_med(name: str):
-    """
-    This function reads the data.json file and returns a single medicine by name.
-    Args:
-        name (str): The name of the medicine to retrieve.
-    Returns:
-        dict: A dictionary containing the medicine details
-    """
-    with open('data.json') as meds:
-        data = json.load(meds)
-        for med in data["medicines"]:
-            print(med)
-            if med['name'] == name:
-                return med
+    data = load_data()
+    for med in data["medicines"]:
+        if med['name'] == name:
+            return med
     return {"error": "Medicine not found"}
 
 @app.post("/create")
-def create_med(name: str = Form(...), price: float = Form(...)):
+def create_med(medicine: Medicine):
     """
-    This function creates a new medicine with the specified name and price.
-    It expects the name and price to be provided as form data.
-    Args:
-        name (str): The name of the medicine.
-        price (float): The price of the medicine.
-    Returns:
-        dict: A message confirming the medicine was created successfully.
+    Creates a new medicine.
+    Expects JSON body: {"name": "Name", "price": 10.0}
     """
-    with open('data.json', 'r+') as meds:
-        current_db = json.load(meds)
-        new_med = {"name": name, "price": price}
-        current_db["medicines"].append(new_med)
-        meds.seek(0)
-        json.dump(current_db, meds)
-        meds.truncate()
-        
-    return {"message": f"Medicine created successfully with name: {name}"}
+    data = load_data()
+    new_med = medicine.dict()
+    data["medicines"].append(new_med)
+    save_data(data)
+    return {"message": f"Medicine created successfully with name: {medicine.name}"}
 
 @app.post("/update")
-def update_med(name: str = Form(...), price: float = Form(...)):
-    """
-    This function updates the price of a medicine with the specified name.
-    It expects the name and price to be provided as form data.
-    Args:
-        name (str): The name of the medicine.
-        price (float): The new price of the medicine.
-    Returns:
-        dict: A message confirming the medicine was updated successfully.
-    """
-    with open('data.json', 'r+') as meds:
-        current_db = json.load(meds)
-        for med in current_db["medicines"]:
-            if med['name'] == name:
-                med['price'] = price
-                meds.seek(0)
-                json.dump(current_db, meds)
-                meds.truncate()
-                return {"message": f"Medicine updated successfully with name: {name}"}
+def update_med(medicine: Medicine):
+    data = load_data()
+    for med in data["medicines"]:
+        if med['name'] == medicine.name:
+            med['price'] = medicine.price
+            save_data(data)
+            return {"message": f"Medicine updated successfully with name: {medicine.name}"}
     return {"error": "Medicine not found"}
 
 @app.delete("/delete")
-def delete_med(name: str = Form(...)):
-    """
-    This function deletes a medicine with the specified name.
-    It expects the name to be provided as form data.
-    Args:
-        name (str): The name of the medicine to delete.
-    Returns:
-        dict: A message confirming the medicine was deleted successfully.
-    """
-    with open('data.json', 'r+') as meds:
-        current_db = json.load(meds)
-        for med in current_db["medicines"]:
-            if med['name'] == name:
-                current_db["medicines"].remove(med)
-                meds.seek(0)
-                json.dump(current_db, meds)
-                meds.truncate()
-                return {"message": f"Medicine deleted successfully with name: {name}"}
+def delete_med(name: str):
+    data = load_data()
+    original_count = len(data["medicines"])
+    data["medicines"] = [m for m in data["medicines"] if m['name'] != name]
+    
+    if len(data["medicines"]) < original_count:
+        save_data(data)
+        return {"message": f"Medicine deleted successfully with name: {name}"}
     return {"error": "Medicine not found"}
 
-# Add your average function here
+@app.get("/average-price")
+def calculate_average_price():
+    """Calculates the average price of all medicines."""
+    data = load_data()
+    medicines = data.get("medicines", [])
+    
+    # Filter out None or non-numeric prices
+    valid_prices = [
+        m["price"] for m in medicines 
+        if m.get("price") is not None and isinstance(m["price"], (int, float))
+    ]
+
+    if not valid_prices:
+        return {"error": "No valid prices found"}
+
+    avg = sum(valid_prices) / len(valid_prices)
+    return {"average_price": round(avg, 2)}
+
+# --- Static Files Configuration ---
+# This mounts the frontend to the root URL. 
+# Ideally placed before the main execution block.
+app.mount("/", StaticFiles(directory="../frontend", html=True), name="static")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -3,19 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Medicine Tracker</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="disclaimer" id="disclaimer">
         Disclaimer: All medicine names and prices used in this application are fictional and do not represent any real medicine(s).
     </div>
+
+    <!-- Notification container for success/error messages -->
+    <div id="notification"></div>
+
     <header>
         <h1>Medicine Tracker</h1>
     </header>
-    <main>
 
+    <main>
+        <!-- Section 1: Add New Medicine Form -->
+        <form id="addMedicineForm">
+            <!-- CRITICAL FIX: Removed "required" attribute here and below -->
+            <input type="text" id="medName" placeholder="Medicine Name"> 
+            <input type="number" id="medPrice" placeholder="Price" min="0.01" step="0.01">
+            <button type="submit">Add Medicine</button>
+        </form>
+
+        <!-- Section 2: Real-time Search -->
+        <div class="search-container">
+            <input type="search" id="searchBar" placeholder="Search medicines...">
+        </div>
+
+        <!-- Section 3: Medicine List Display -->
+        <div id="medicineList"></div>
+        
+        <!-- Section 4: Analytics -->
+        <button id="averagePriceButton">Calculate Average Price</button>
+        <p id="averagePriceDisplay">Price Average</p>
     </main>
-    <script src="script.js"></script>
+    
+    <!-- New Footer Banner -->
+    <footer id="appFooter">
+        <p>Built with Python (FastAPI) & Modular JavaScript | Hisham's Works for Eli Lilly</p>
+    </footer>
+
+    <!-- Load the main controller as a module -->
+    <script src="main.js" type="module"></script>
 </body>
 </html>
