@@ -3,49 +3,678 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Medicine Tracker</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Lilly MedManager | Enterprise Dashboard</title>
+    
+    <!-- 1. Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- 3. Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- 4. Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        
+        /* Lilly Corporate Identity */
+        :root { --lilly-red: #d52b1e; }
+
+        /* Glassmorphism Utilities */
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+
+        /* Animations */
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    </style>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        lilly: {
+                            red: '#d52b1e', // Official Red
+                            dark: '#a81815',
+                            light: '#ffedec'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-    <div class="disclaimer" id="disclaimer">
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden bg-slate-50 selection:bg-lilly-red selection:text-white relative">
+
+    <!-- DISCLAIMER FOOTER -->
+    <div class="absolute bottom-0 left-0 w-full bg-slate-900 text-slate-400 text-[10px] py-1.5 text-center z-50">
         Disclaimer: All medicine names and prices used in this application are fictional and do not represent any real medicine(s).
     </div>
 
-    <!-- Notification container for success/error messages -->
-    <div id="notification"></div>
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container" class="fixed bottom-10 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-    <header>
-        <h1>Medicine Tracker</h1>
-    </header>
+    <!-- EDIT MODAL -->
+    <div id="edit-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-all">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm m-4 animate-slide-up ring-1 ring-slate-900/5">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i data-lucide="edit-3" class="w-5 h-5 text-lilly-red"></i> Edit Inventory
+            </h3>
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Medicine Name</label>
+                <div id="modal-med-name" class="text-slate-800 font-bold text-xl"></div>
+            </div>
+            <div class="mb-6">
+                <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">New Price (£)</label>
+                <input type="number" id="modal-med-price" step="0.01" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-lilly-red/20 focus:border-lilly-red outline-none transition-all font-medium text-lg">
+            </div>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeEditModal()" class="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+                <button onclick="saveEdit()" class="px-5 py-2.5 bg-lilly-red text-white font-medium hover:bg-lilly-dark rounded-xl shadow-lg shadow-lilly-red/30 transition-all active:scale-95">Save Changes</button>
+            </div>
+        </div>
+    </div>
 
-    <main>
-        <!-- Section 1: Add New Medicine Form -->
-        <form id="addMedicineForm">
-            <!-- CRITICAL FIX: Removed "required" attribute here and below -->
-            <input type="text" id="medName" placeholder="Medicine Name"> 
-            <input type="number" id="medPrice" placeholder="Price" min="0.01" step="0.01">
-            <button type="submit">Add Medicine</button>
-        </form>
+    <!-- DELETE MODAL (NEW) -->
+    <div id="delete-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-all">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm m-4 animate-slide-up ring-1 ring-red-100">
+            <div class="flex flex-col items-center text-center mb-6">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 text-red-600">
+                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Delete Medicine?</h3>
+                <p class="text-sm text-slate-500">Are you sure you want to remove <span id="delete-med-name" class="font-bold text-slate-700">this item</span> from the inventory? This action cannot be undone.</p>
+            </div>
+            <div class="flex justify-center gap-3">
+                <button onclick="closeDeleteModal()" class="w-full px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors border border-slate-200">Cancel</button>
+                <button onclick="confirmDelete()" class="w-full px-5 py-2.5 bg-red-600 text-white font-medium hover:bg-red-700 rounded-xl shadow-lg shadow-red-200 transition-all active:scale-95">Delete</button>
+            </div>
+        </div>
+    </div>
 
-        <!-- Section 2: Real-time Search -->
-        <div class="search-container">
-            <input type="search" id="searchBar" placeholder="Search medicines...">
+    <!-- NAVBAR -->
+    <nav class="sticky top-0 z-40 glass">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-lilly-red p-2 rounded-lg shadow-md shadow-lilly-red/20">
+                    <i data-lucide="cross" class="text-white w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-800 tracking-tight">
+                        Lilly <span class="text-lilly-red">MedManager</span>
+                    </h1>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                 <!-- Export Button -->
+                 <button onclick="exportToCSV()" class="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-lilly-red transition-all shadow-sm">
+                    <i data-lucide="download" class="w-4 h-4"></i> Export CSV
+                </button>
+
+                <!-- Backend Toggle -->
+                <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-full border border-slate-200">
+                    <button onclick="setMode('demo')" id="btn-demo" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm bg-white text-slate-800">
+                        Demo
+                    </button>
+                    <button onclick="setMode('backend')" id="btn-backend" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all text-slate-500 hover:text-slate-800">
+                        Live
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN LAYOUT -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 py-6 overflow-hidden flex flex-col lg:flex-row gap-6">
+        
+        <!-- LEFT COLUMN: Input, Stats, & Charts -->
+        <div class="w-full lg:w-[350px] xl:w-[400px] flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2 pb-20">
+            
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                    <div class="flex items-center gap-2 text-slate-400 mb-1">
+                        <i data-lucide="package" class="w-4 h-4"></i>
+                        <span class="text-[10px] font-bold uppercase tracking-wider">Total Items</span>
+                    </div>
+                    <div id="stat-count" class="text-3xl font-bold text-slate-800">0</div>
+                </div>
+                
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                    <div class="flex items-center gap-2 text-lilly-red mb-1">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                        <span class="text-[10px] font-bold uppercase tracking-wider">Avg Price</span>
+                    </div>
+                    <div id="stat-avg" class="text-3xl font-bold text-slate-800">£0.00</div>
+                </div>
+            </div>
+
+            <!-- Add Medicine Form -->
+            <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 relative group">
+                <div class="absolute top-0 left-0 w-1 h-full bg-lilly-red rounded-l-2xl"></div>
+                
+                <div class="p-5 border-b border-slate-50 flex items-center justify-between">
+                    <h2 class="font-bold text-slate-800 flex items-center gap-2 text-sm uppercase tracking-wide">
+                        Add to Inventory
+                    </h2>
+                    <div class="bg-lilly-light p-1.5 rounded-md text-lilly-red">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                
+                <form id="add-form" class="p-5 flex flex-col gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Medicine Name</label>
+                        <input type="text" id="input-name" placeholder="e.g. Ibuprofen" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-lilly-red/10 focus:border-lilly-red outline-none transition-all text-sm font-medium placeholder:text-slate-400">
+                    </div>
+                    <div>
+                         <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Price (£)</label>
+                         <div class="relative">
+                            <span class="absolute left-4 top-3.5 text-slate-400 font-bold">£</span>
+                            <input type="number" id="input-price" step="0.01" placeholder="0.00" class="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-lilly-red/10 focus:border-lilly-red outline-none transition-all text-sm font-medium placeholder:text-slate-400">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="w-full py-3 bg-lilly-red hover:bg-red-700 text-white rounded-xl font-semibold shadow-lg shadow-red-200 transition-all active:scale-95 text-sm flex justify-center items-center gap-2 mt-2">
+                        <span>Add Record</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- ANALYTICS CHART -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Price Distribution</h3>
+                <div class="h-48 relative">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Activity Log -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Recent Activity</h3>
+                <div id="activity-log" class="space-y-3 max-h-40 overflow-y-auto custom-scrollbar">
+                    <p class="text-xs text-slate-400 italic">No activity yet.</p>
+                </div>
+            </div>
+
         </div>
 
-        <!-- Section 3: Medicine List Display -->
-        <div id="medicineList"></div>
-        
-        <!-- Section 4: Analytics -->
-        <button id="averagePriceButton">Calculate Average Price</button>
-        <p id="averagePriceDisplay">Price Average</p>
-    </main>
-    
-    <!-- New Footer Banner -->
-    <footer id="appFooter">
-        <p>Built with Python (FastAPI) & Modular JavaScript | Hisham's Works for Eli Lilly</p>
-    </footer>
+        <!-- RIGHT COLUMN: Inventory List -->
+        <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden mb-8">
+            
+            <!-- Toolbar -->
+            <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center bg-white">
+                <div class="relative w-full sm:w-auto flex-1 max-w-md">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 text-slate-400 w-4 h-4"></i>
+                    <input type="text" id="search-input" placeholder="Search by name..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-lilly-red/10 focus:bg-white transition-all placeholder:text-slate-400 font-medium text-slate-600">
+                </div>
+                
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
+                        <span>Sort:</span>
+                        <select id="sort-select" class="bg-transparent outline-none cursor-pointer hover:text-lilly-red transition-colors">
+                            <option value="name">Name (A-Z)</option>
+                            <option value="priceAsc">Price (Lowest)</option>
+                            <option value="priceDesc">Price (Highest)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Load the main controller as a module -->
-    <script src="main.js" type="module"></script>
+            <!-- List Header -->
+            <div class="px-6 py-3 bg-slate-50 border-b border-slate-100 grid grid-cols-12 gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <div class="col-span-6">Medicine Details</div>
+                <div class="col-span-3 text-right">Price</div>
+                <div class="col-span-3 text-right">Actions</div>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div id="list-container" class="flex-1 overflow-y-auto custom-scrollbar relative bg-white">
+                <!-- Content injected via JS -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- === JAVASCRIPT === -->
+    <script>
+        // --- 1. STATE & CONFIG ---
+        
+        const isFileProtocol = window.location.protocol === 'file:';
+        const API_URL = isFileProtocol ? 'http://localhost:8000' : '';
+        
+        const MOCK_DATA = [
+            { name: "Humalog", price: 25.50 },
+            { name: "Trulicity", price: 145.99 },
+            { name: "Cialis", price: 45.00 },
+            { name: "Olumiant", price: 89.25 },
+            { name: "Verzenio", price: 210.00 }
+        ];
+
+        // Load Demo Data from LocalStorage if available
+        const loadDemoData = () => {
+            const saved = localStorage.getItem('lilly_demo_data');
+            return saved ? JSON.parse(saved) : [...MOCK_DATA];
+        };
+
+        const state = {
+            medicines: [],
+            demoMedicines: loadDemoData(), 
+            loading: false,
+            mode: 'demo',
+            filter: '',
+            sortBy: 'name',
+            logs: []
+        };
+
+        let chartInstance = null;
+
+        // --- 2. INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if(window.lucide) lucide.createIcons();
+            initChart();
+            
+            setMode('demo');
+
+            const form = document.getElementById('add-form');
+            if (form) form.addEventListener('submit', handleAdd);
+
+            document.getElementById('search-input').addEventListener('input', (e) => {
+                state.filter = e.target.value.toLowerCase();
+                renderList();
+            });
+            document.getElementById('sort-select').addEventListener('change', (e) => {
+                state.sortBy = e.target.value;
+                renderList();
+            });
+        });
+
+        // --- 3. CORE LOGIC ---
+
+        function setMode(mode) {
+            state.mode = mode;
+            const btnDemo = document.getElementById('btn-demo');
+            const btnBackend = document.getElementById('btn-backend');
+            
+            const activeClass = "bg-lilly-red text-white shadow-md";
+            const inactiveClass = "bg-white text-slate-600 hover:bg-slate-50";
+
+            if (mode === 'demo') {
+                btnDemo.className = `flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeClass}`;
+                btnBackend.className = `flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${inactiveClass}`;
+                showToast("Switched to Demo Mode");
+                
+                fetchMedicines();
+                
+            } else {
+                btnBackend.className = `flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeClass}`;
+                btnDemo.className = `flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${inactiveClass}`;
+                showToast("Switched to Live Backend");
+                fetchMedicines();
+            }
+        }
+
+        function saveDemoData() {
+            localStorage.setItem('lilly_demo_data', JSON.stringify(state.demoMedicines));
+        }
+
+        function logActivity(action, detail) {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            state.logs.unshift({ action, detail, time });
+            renderLogs();
+        }
+
+        async function fetchMedicines() {
+            renderLoading();
+            
+            if (state.mode === 'demo') {
+                setTimeout(() => {
+                    state.medicines = [...state.demoMedicines];
+                    updateApp();
+                }, 600);
+                return;
+            }
+
+            try {
+                console.log(`Fetching from: ${API_URL}/medicines`); 
+                const res = await fetch(`${API_URL}/medicines`);
+                if (!res.ok) throw new Error("Failed to connect");
+                const data = await res.json();
+                state.medicines = data.medicines || [];
+                updateApp();
+            } catch (err) {
+                console.error(err);
+                showToast("Could not connect to Backend", "error");
+                state.medicines = []; 
+                updateApp();
+            }
+        }
+
+        function updateApp() {
+            renderList();
+            renderStats();
+            updateChart();
+        }
+
+        async function handleAdd(e) {
+            e.preventDefault();
+            
+            const nameInput = document.getElementById('input-name');
+            const priceInput = document.getElementById('input-price');
+            const name = nameInput.value.trim();
+            const price = parseFloat(priceInput.value);
+
+            if (!name) {
+                showToast("Please enter a medicine name", "error");
+                return;
+            }
+            if (isNaN(price)) {
+                showToast("Please enter a valid price", "error");
+                return;
+            }
+
+            const newMed = { name, price };
+
+            // Optimistic Update
+            state.medicines.push(newMed);
+            
+            if (state.mode === 'demo') {
+                state.demoMedicines.push(newMed);
+                saveDemoData();
+            }
+
+            state.filter = '';
+            document.getElementById('search-input').value = '';
+            updateApp();
+            
+            nameInput.value = '';
+            priceInput.value = '';
+            showToast(`${name} added successfully`);
+            logActivity("Added", name);
+
+            setTimeout(() => {
+                const listContainer = document.getElementById('list-container');
+                listContainer.scrollTop = listContainer.scrollHeight;
+            }, 50);
+
+            if (state.mode === 'backend') {
+                try {
+                    const res = await fetch(`${API_URL}/create`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newMed)
+                    });
+                    
+                    if (!res.ok) throw new Error("Backend refused");
+                } catch (err) {
+                    console.error("Backend Error:", err);
+                    state.medicines = state.medicines.filter(m => m !== newMed); 
+                    updateApp();
+                    showToast("Failed to save to server", "error");
+                }
+            }
+        }
+
+        // --- DELETE & MODAL LOGIC (NEW) ---
+
+        let itemToDelete = null; // Stores name of item waiting to be deleted
+
+        function openDeleteModal(name) {
+            itemToDelete = name;
+            document.getElementById('delete-med-name').textContent = name;
+            const modal = document.getElementById('delete-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeDeleteModal() {
+            const modal = document.getElementById('delete-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            itemToDelete = null;
+        }
+
+        async function confirmDelete() {
+            if (!itemToDelete) return;
+            const name = itemToDelete;
+            closeDeleteModal();
+
+            const oldMedicines = [...state.medicines];
+            state.medicines = state.medicines.filter(m => m.name !== name);
+            
+            if (state.mode === 'demo') {
+                state.demoMedicines = state.demoMedicines.filter(m => m.name !== name);
+                saveDemoData();
+            }
+
+            updateApp();
+            showToast(`${name} deleted`);
+            logActivity("Deleted", name);
+
+            if (state.mode === 'backend') {
+                try {
+                    await fetch(`${API_URL}/delete?name=${encodeURIComponent(name)}`, { method: 'DELETE' });
+                } catch (err) {
+                    state.medicines = oldMedicines; 
+                    updateApp();
+                    showToast("Server Error: Could not delete", "error");
+                }
+            }
+        }
+
+        // --- EDIT MODAL ---
+
+        let editingName = null;
+        function openEditModal(name, price) {
+            editingName = name;
+            document.getElementById('modal-med-name').textContent = name;
+            document.getElementById('modal-med-price').value = price;
+            const modal = document.getElementById('edit-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('edit-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            editingName = null;
+        }
+
+        async function saveEdit() {
+            const newPrice = parseFloat(document.getElementById('modal-med-price').value);
+            if (!editingName || isNaN(newPrice)) return;
+
+            const oldMedicines = [...state.medicines];
+            const med = state.medicines.find(m => m.name === editingName);
+            if (med) med.price = newPrice;
+            
+            if (state.mode === 'demo') {
+                const demoMed = state.demoMedicines.find(m => m.name === editingName);
+                if (demoMed) demoMed.price = newPrice;
+                saveDemoData();
+            }
+
+            updateApp();
+            closeEditModal();
+            showToast("Updated");
+            logActivity("Updated", editingName);
+
+            if (state.mode === 'backend') {
+                try {
+                    await fetch(`${API_URL}/update`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: editingName, price: newPrice })
+                    });
+                } catch (err) {
+                    state.medicines = oldMedicines;
+                    updateApp();
+                    showToast("Server Error", "error");
+                }
+            }
+        }
+
+        // --- 4. CSV EXPORT ---
+        function exportToCSV() {
+            if (state.medicines.length === 0) {
+                showToast("No data to export", "error");
+                return;
+            }
+            
+            let csvContent = "data:text/csv;charset=utf-8,Name,Price\n";
+            state.medicines.forEach(row => {
+                csvContent += `${row.name},${row.price}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "lilly_inventory_report.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("Report Downloaded");
+            logActivity("Exported", "CSV Report");
+        }
+
+        // --- 5. VISUAL ANALYTICS ---
+        function initChart() {
+            const ctx = document.getElementById('priceChart');
+            if(!ctx) return;
+            
+            chartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Price (£)',
+                        data: [],
+                        backgroundColor: '#d52b1e',
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { display: false } },
+                        x: { grid: { display: false }, ticks: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function updateChart() {
+            if (!chartInstance) return;
+            const sorted = [...state.medicines].sort((a,b) => b.price - a.price).slice(0, 10);
+            chartInstance.data.labels = sorted.map(m => m.name);
+            chartInstance.data.datasets[0].data = sorted.map(m => m.price);
+            chartInstance.update();
+        }
+
+        // --- 6. UI RENDERING ---
+
+        function renderLogs() {
+            const container = document.getElementById('activity-log');
+            if (state.logs.length === 0) return;
+            container.innerHTML = state.logs.map(log => `
+                <div class="flex items-start gap-3 text-xs animate-fade-in">
+                    <div class="mt-1 w-1.5 h-1.5 rounded-full bg-slate-300"></div>
+                    <div>
+                        <span class="font-bold text-slate-700">${log.action}</span> 
+                        <span class="text-slate-500">${log.detail}</span>
+                        <div class="text-[10px] text-slate-400 mt-0.5">${log.time}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderStats() {
+            const valid = state.medicines.filter(m => m.price !== null);
+            const total = valid.length;
+            const avg = total ? (valid.reduce((a,b) => a+b.price, 0) / total).toFixed(2) : "0.00";
+            document.getElementById('stat-count').textContent = total;
+            document.getElementById('stat-avg').textContent = `£${avg}`;
+        }
+
+        function renderList() {
+            const list = document.getElementById('list-container');
+            list.innerHTML = '';
+
+            let processed = state.medicines.filter(m => m.name.toLowerCase().includes(state.filter));
+            if (state.sortBy === 'priceAsc') processed.sort((a,b) => a.price - b.price);
+            else if (state.sortBy === 'priceDesc') processed.sort((a,b) => b.price - a.price);
+            else processed.sort((a,b) => a.name.localeCompare(b.name));
+
+            if (processed.length === 0) {
+                list.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-slate-400 py-12">
+                        <div class="bg-slate-50 p-4 rounded-full mb-3"><i data-lucide="search" class="w-6 h-6 opacity-40"></i></div>
+                        <p class="font-medium text-sm">No records found</p>
+                    </div>`;
+                if(window.lucide) lucide.createIcons();
+                return;
+            }
+
+            processed.forEach((med, index) => {
+                const priceDisplay = med.price !== null ? `£${med.price.toFixed(2)}` : 'N/A';
+                const div = document.createElement('div');
+                div.className = "px-6 py-4 border-b border-slate-50 hover:bg-slate-50 transition-colors grid grid-cols-12 gap-4 items-center group animate-fade-in";
+                div.innerHTML = `
+                    <div class="col-span-6 flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-lilly-light text-lilly-red flex items-center justify-center font-bold text-xs">${med.name.charAt(0).toUpperCase()}</div>
+                        <div>
+                            <h4 class="font-bold text-slate-700 text-sm group-hover:text-lilly-red transition-colors">${med.name}</h4>
+                            <div class="text-[10px] text-slate-400">ID: LLY-${1000+index}</div>
+                        </div>
+                    </div>
+                    <div class="col-span-3 text-right font-mono font-medium text-slate-600 text-sm">${priceDisplay}</div>
+                    <div class="col-span-3 text-right flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="openEditModal('${med.name}', ${med.price})" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                        <button onclick="openDeleteModal('${med.name}')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+            if(window.lucide) lucide.createIcons();
+        }
+
+        function renderLoading() {
+            const list = document.getElementById('list-container');
+            list.innerHTML = '';
+            for(let i=0; i<3; i++) list.innerHTML += `<div class="p-6 border-b border-slate-50 animate-pulse flex gap-4"><div class="w-8 h-8 bg-slate-100 rounded-full"></div><div class="flex-1 space-y-2"><div class="h-4 bg-slate-100 w-1/3 rounded"></div><div class="h-3 bg-slate-100 w-1/6 rounded"></div></div></div>`;
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bg = type === 'success' ? 'bg-slate-800' : 'bg-red-600';
+            const icon = type === 'success' ? 'check' : 'alert-circle';
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl text-white animate-slide-up ${bg}`;
+            toast.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i><span class="text-xs font-semibold">${message}</span>`;
+            container.appendChild(toast);
+            if(window.lucide) lucide.createIcons();
+            setTimeout(() => toast.remove(), 3000);
+        }
+    </script>
 </body>
 </html>
